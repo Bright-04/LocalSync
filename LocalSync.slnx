@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/LocalSync.Api/LocalSync.Api.csproj" />
+    <Project Path="backend/LocalSync.Core/LocalSync.Core.csproj" />
+    <Project Path="backend/LocalSync.Infrastructure/LocalSync.Infrastructure.csproj" />
+    <Project Path="backend/LocalSync.Tests/LocalSync.Tests.csproj" />
+    <Project Path="backend/LocalSync.Worker/LocalSync.Worker.csproj" />
+  </Folder>
+</Solution>
