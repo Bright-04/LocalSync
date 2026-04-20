@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  localsync-api:
+    image: localsync-api:dev
+    build:
+      context: .
+      dockerfile: backend/LocalSync.Api/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - localsync_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  localsync-worker:
+    image: localsync-worker:dev
+    build:
+      context: .
+      dockerfile: backend/LocalSync.Worker/Dockerfile
+    environment:
+      - DOTNET_ENVIRONMENT=Development
+    networks:
+      - localsync_net
+
+  localsync-web:
+    image: localsync-web:dev
+    build:
+      context: ./frontend/localsync-web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - localsync_net
+
+networks:
+  localsync_net:
+    driver: bridge
