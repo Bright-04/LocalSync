@@ -1,1 +1,1 @@
-ui: improve progress bar smoothness
+fix: resolve race condition in file queue
