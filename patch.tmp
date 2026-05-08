@@ -1,1 +1,1 @@
-fix: handle large file uploads (>2GB)
+ui: improve progress bar smoothness
