@@ -1,1 +1,1 @@
-chore: update .NET 8 SDK version
+fix: handle large file uploads (>2GB)
