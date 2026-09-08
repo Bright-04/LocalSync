@@ -1,0 +1,45 @@
+<Project>
+
+  <!--
+    Central package version management. Individual .csproj files carry
+    <PackageReference Include="..." /> with NO Version attribute.
+
+    NOTE: the 10.0.6 / 10.0.7 versions below were inherited verbatim from the
+    prototype's .csproj files and have never been restore-verified (no .NET SDK
+    was available when they were centralised). The first successful `dotnet
+    restore` is what confirms they exist.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="ASP.NET Core">
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
+  </ItemGroup>
+
+  <ItemGroup Label="Extensions">
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+  </ItemGroup>
+
+  <ItemGroup Label="Logging">
+    <!-- Serilog.Settings.Configuration is deliberately absent: it is not
+         trim-compatible. Configuration is code-only. See BannedSymbols.txt. -->
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Discovery (removed in Phase 1 by the hand-rolled UDP responder)">
+    <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+</Project>

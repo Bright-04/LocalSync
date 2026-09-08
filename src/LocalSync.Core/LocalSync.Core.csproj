@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!--
+    Core references NOTHING outside the BCL. No PackageReference, no
+    ProjectReference, and never Microsoft.AspNetCore.*. That constraint is what
+    keeps this assembly consumable by the MAUI head, and it is enforced by a
+    NetArchTest assertion rather than by this comment.
+  -->
+
+</Project>

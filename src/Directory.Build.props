@@ -1,0 +1,30 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    The highest-value setting in this repo.
+
+    IsAotCompatible turns on EnableTrimAnalyzer + EnableAotAnalyzer +
+    EnableSingleFileAnalyzer, so IL2xxx/IL3xxx surface at `dotnet build` on a
+    laptop instead of at `dotnet publish` in a release job three weeks later.
+    Combined with TreatWarningsAsErrors from the root, this is what stops AOT
+    compatibility from rotting as the codebase grows.
+
+    Projects may opt out, but every opt-out carries a comment saying why and
+    when it goes away. See src/LocalSync.Api/LocalSync.Api.csproj.
+  -->
+  <PropertyGroup>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!--
+    Core / Infrastructure are consumed by the MAUI head, where awaiting on a
+    captured UI SynchronizationContext deadlocks. Missing ConfigureAwait(false)
+    is an error in the libraries, not in the hosts.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'LocalSync.Core' Or '$(MSBuildProjectName)' == 'LocalSync.Infrastructure'">
+    <WarningsAsErrors>$(WarningsAsErrors);CA2007</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

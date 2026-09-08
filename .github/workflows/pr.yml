@@ -1,0 +1,134 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+# TODO(phase-2c): pin every third-party action to a full commit SHA before the
+# release workflow gains signing secrets. A compromised action is a direct
+# supply-chain path into signed binaries.
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release --logger "trx;LogFileName=test-results.trx"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore
+
+  # One fast RID on every PR, so AOT breakage surfaces in minutes rather than at
+  # release. Phase 1 is what makes this job meaningful: LocalSync.Api currently
+  # opts out of IsAotCompatible because MVC and SignalR are AOT-hostile.
+  aot-analyze:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: AOT analyzer pass over the libraries
+        run: dotnet build src/LocalSync.Core src/LocalSync.Infrastructure -c Release -warnaserror
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web/localsync-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/localsync-ui/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint and format check
+        run: npx biome ci .
+
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Build
+        run: npm run build
+
+  docs-lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # The README previously claimed .NET 8, a FileSystemWatcher worker,
+      # resumable transfers, and GitHub Actions CI - none of which existed.
+      # This job makes that class of drift a build failure rather than a promise.
+      - name: Banned claims
+        run: |
+          set -euo pipefail
+          banned='production-grade|\.NET 8|LocalSync\.Worker|FileSystemWatcher'
+          if grep -nEi "$banned" README.md; then
+            echo "::error::README.md contains a claim from the banned list above."
+            exit 1
+          fi
+          echo "No banned claims found."
+
+      - name: Referenced workflows must exist
+        run: |
+          set -euo pipefail
+          missing=0
+          while read -r path; do
+            [ -z "$path" ] && continue
+            if [ ! -f "$path" ]; then
+              echo "::error::README.md references '$path', which does not exist."
+              missing=1
+            fi
+          done < <(grep -oE '\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml' README.md || true)
+          exit $missing
+
+      - name: Documented versions must match the pinned toolchain
+        run: |
+          set -euo pipefail
+          sdk=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' global.json | head -1 | grep -oE '[0-9][^"]*')
+          node=$(tr -d '[:space:]' < .nvmrc)
+          echo "global.json SDK=$sdk  .nvmrc Node=$node"
+          grep -q "$sdk" README.md || { echo "::error::README.md does not mention SDK $sdk"; exit 1; }
+          grep -q "$node" README.md || { echo "::error::README.md does not mention Node $node"; exit 1; }
