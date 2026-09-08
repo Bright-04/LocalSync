@@ -131,23 +131,39 @@ public static class SafeFileName
         var fullRoot = Path.GetFullPath(root);
         var candidate = Path.GetFullPath(Path.Combine(fullRoot, safeName));
 
-        // macOS and Windows are case-insensitive by default, so an Ordinal
-        // comparison there would reject legitimate paths and, worse, could be
-        // sidestepped by case variation.
-        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        var prefix = fullRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? fullRoot
-            : fullRoot + Path.DirectorySeparatorChar;
-
-        if (!candidate.StartsWith(prefix, comparison))
+        if (!IsWithinRoot(fullRoot, candidate))
         {
             return false;
         }
 
         fullPath = candidate;
         return true;
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="candidateFullPath"/> lies strictly
+    /// inside <paramref name="root"/>.
+    /// </summary>
+    /// <remarks>
+    /// Public and separately testable because <see cref="TryValidate"/> makes
+    /// it unreachable for single leaf names, but directory transfers validate
+    /// multi-segment relative paths where escape is genuinely possible.
+    /// Both arguments must already be absolute.
+    /// </remarks>
+    public static bool IsWithinRoot(string root, string candidateFullPath)
+    {
+        // macOS and Windows are case-insensitive by default, so an Ordinal
+        // comparison there could be sidestepped by case variation.
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        // The trailing separator is load-bearing: without it, root
+        // "/tmp/localsync" would accept "/tmp/localsync-evil/x".
+        var prefix = root.EndsWith(Path.DirectorySeparatorChar)
+            ? root
+            : root + Path.DirectorySeparatorChar;
+
+        return candidateFullPath.StartsWith(prefix, comparison);
     }
 }

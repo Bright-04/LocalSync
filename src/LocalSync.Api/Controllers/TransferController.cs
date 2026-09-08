@@ -1,3 +1,15 @@
+// PHASE 1 REPLACEMENT PENDING - suppressions expire with this file.
+//
+// This controller becomes Minimal API endpoint groups in LocalSync.Host,
+// because MVC is unsupported under NativeAOT. The diagnostics below are real
+// and are fixed BY that replacement:
+//   CA5351 - MD5 for change detection; becomes SHA-256 on the wire (matching
+//            LocalSend v2.2) plus per-block hashing for verifiable resume.
+//   CA1848 - LoggerMessage delegates; also CA1873 for the same call sites.
+//
+// Scoped per-file, not per-project, so new code in LocalSync.Api stays strict.
+#pragma warning disable CA5351, CA1848, CA1873
+
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Models;
 using LocalSync.Core.Security;
@@ -45,7 +57,7 @@ public class TransferController : ControllerBase
         if (System.IO.File.Exists(filePath))
         {
             bool isIdentical = false;
-            
+
             if (request.LastModified.HasValue)
             {
                 var localLastWrite = System.IO.File.GetLastWriteTimeUtc(filePath);
@@ -60,8 +72,8 @@ public class TransferController : ControllerBase
                 using var md5 = System.Security.Cryptography.MD5.Create();
                 using var stream = System.IO.File.OpenRead(filePath);
                 var hashBytes = md5.ComputeHash(stream);
-                var localHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-                
+                var localHash = Convert.ToHexStringLower(hashBytes);
+
                 if (localHash == request.FileHash) isIdentical = true;
             }
 
@@ -121,7 +133,7 @@ public class TransferController : ControllerBase
             await using var stream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
             stream.Seek(offset, SeekOrigin.Begin);
             await chunk.CopyToAsync(stream);
-            
+
             await _transferManager.UpdateProgressAsync(sessionId, chunk.Length);
 
             if (session.State == TransferState.Pending)

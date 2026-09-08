@@ -27,8 +27,8 @@ public class TransferManager : ITransferManager
             CreatedAt = DateTime.UtcNow
         };
         _sessions.TryAdd(session.Id, session);
-        
-        await _notificationService.NotifySessionCreatedAsync(session);
+
+        await _notificationService.NotifySessionCreatedAsync(session).ConfigureAwait(false);
         return session;
     }
 
@@ -52,7 +52,7 @@ public class TransferManager : ITransferManager
             {
                 session.CompletedAt = DateTime.UtcNow;
             }
-            await _notificationService.NotifyStateChangedAsync(sessionId, state);
+            await _notificationService.NotifyStateChangedAsync(sessionId, state).ConfigureAwait(false);
         }
     }
 
@@ -61,13 +61,13 @@ public class TransferManager : ITransferManager
         if (_sessions.TryGetValue(sessionId, out var session))
         {
             session.TransferredSize += bytesTransferred;
-            await _notificationService.NotifyProgressAsync(sessionId, session.TransferredSize);
-            
+            await _notificationService.NotifyProgressAsync(sessionId, session.TransferredSize).ConfigureAwait(false);
+
             if (session.TransferredSize >= session.TotalSize)
             {
                 session.State = TransferState.Completed;
                 session.CompletedAt = DateTime.UtcNow;
-                await _notificationService.NotifyStateChangedAsync(sessionId, TransferState.Completed);
+                await _notificationService.NotifyStateChangedAsync(sessionId, TransferState.Completed).ConfigureAwait(false);
             }
         }
     }

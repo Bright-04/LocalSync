@@ -11,4 +11,10 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- CA1707: Method_Scenario_Expectation is the xUnit convention and reads
+         far better in a test report than MethodScenarioExpectation. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
 </Project>

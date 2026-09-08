@@ -1,10 +1,26 @@
+// PHASE 1 REPLACEMENT PENDING - suppressions expire with this file.
+//
+// This file is deleted in Phase 1 (see docs/adr/, docs/architecture.md) and
+// replaced by Discovery/MulticastResponder.cs (hand-rolled UDP
+// multicast on 224.0.0.167:53317, dropping the Makaretu.Dns dependency). The diagnostics below are
+// real and are fixed BY that replacement, not by editing this file:
+//   CA5351 - MD5 derives a device identity from ip:port. The concept is
+//            wrong, not just the algorithm: two hosts swapping DHCP leases
+//            would swap identities. Identity becomes SHA-256(SPKI).
+//   CS0067 - OnDeviceOffline is never raised, which is why discovered
+//            devices never go offline. Needs TTL expiry in PeerRegistry.
+//   CA1848 - LoggerMessage delegates; also CA1873 for the same call sites.
+//
+// Scoped per-file, not per-project, so new code in LocalSync.Infrastructure
+// stays strict. Do not copy this block into a new file.
+#pragma warning disable CA5351, CS0067, CA1848, CA1873
+
 using System.Net;
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Models;
 using Makaretu.Dns;
-using Microsoft.Extensions.Logging;
-
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace LocalSync.Infrastructure.Discovery;
 
@@ -40,18 +56,18 @@ public class MdnsDiscoveryService : IDeviceDiscoveryService, IDisposable
     {
         if (!e.ServiceInstanceName.ToString().Contains(_serviceName)) return;
 
-        var txtRecord = e.Message.AdditionalRecords.OfType<TXTRecord>().FirstOrDefault() 
+        var txtRecord = e.Message.AdditionalRecords.OfType<TXTRecord>().FirstOrDefault()
                      ?? e.Message.Answers.OfType<TXTRecord>().FirstOrDefault();
-        var aRecord = e.Message.AdditionalRecords.OfType<ARecord>().FirstOrDefault() 
+        var aRecord = e.Message.AdditionalRecords.OfType<ARecord>().FirstOrDefault()
                    ?? e.Message.Answers.OfType<ARecord>().FirstOrDefault();
-        var srvRecord = e.Message.AdditionalRecords.OfType<SRVRecord>().FirstOrDefault() 
+        var srvRecord = e.Message.AdditionalRecords.OfType<SRVRecord>().FirstOrDefault()
                      ?? e.Message.Answers.OfType<SRVRecord>().FirstOrDefault();
 
         var idString = txtRecord?.Strings.FirstOrDefault(s => s.StartsWith("id="))?.Substring(3);
         var ip = aRecord?.Address.ToString() ?? "127.0.0.1";
         var port = srvRecord?.Port ?? 5000;
 
-        _logger.LogInformation("Discovered instance: {Name} | IP: {IP}:{Port} | ID: {ID}", 
+        _logger.LogInformation("Discovered instance: {Name} | IP: {IP}:{Port} | ID: {ID}",
             e.ServiceInstanceName.Labels[0], ip, port, idString ?? "MISSING");
 
         if (port == _localPort) return; // Prevent self-discovery
@@ -79,10 +95,10 @@ public class MdnsDiscoveryService : IDeviceDiscoveryService, IDisposable
     public Task StartDiscoveryAsync(CancellationToken cancellationToken = default)
     {
         _mdns.Start();
-        
+
         var profile = new ServiceProfile(_instanceName, _serviceName, (ushort)_localPort);
         profile.AddProperty("id", _localDeviceId.ToString());
-        
+
         _discovery.Advertise(profile);
         _logger.LogInformation("Started mDNS advertising for {ServiceName}", _serviceName);
 
@@ -114,5 +130,6 @@ public class MdnsDiscoveryService : IDeviceDiscoveryService, IDisposable
     {
         _discovery.Dispose();
         _mdns.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

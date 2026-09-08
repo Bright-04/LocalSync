@@ -64,8 +64,13 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: AOT analyzer pass over the libraries
-        run: dotnet build src/LocalSync.Core src/LocalSync.Infrastructure -c Release -warnaserror
+      # dotnet build accepts one project at a time, so these are separate steps
+      # rather than one invocation with two paths.
+      - name: AOT analyzer pass over Core
+        run: dotnet build src/LocalSync.Core -c Release -warnaserror
+
+      - name: AOT analyzer pass over Infrastructure
+        run: dotnet build src/LocalSync.Infrastructure -c Release -warnaserror
 
   web:
     runs-on: ubuntu-24.04

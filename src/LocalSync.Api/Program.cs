@@ -1,8 +1,8 @@
-using Serilog;
+using LocalSync.Api.Services;
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Services;
 using LocalSync.Infrastructure.Discovery;
-using LocalSync.Api.Services;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -13,7 +13,7 @@ public class DeviceManager : IDeviceManager
     public void AddOrUpdateDevice(Device device)
     {
         device.LastSeen = DateTime.UtcNow;
-        _devices.AddOrUpdate(device.Id, device, (_, existing) => 
+        _devices.AddOrUpdate(device.Id, device, (_, existing) =>
         {
             existing.IpAddress = device.IpAddress;
             existing.Port = device.Port;

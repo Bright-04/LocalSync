@@ -1,6 +1,6 @@
+using LocalSync.Api.Hubs;
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Models;
-using LocalSync.Api.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
 namespace LocalSync.Api.Services;

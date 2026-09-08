@@ -119,15 +119,50 @@ public class SafeFileNameTests
         Assert.Equal("report.pdf", Path.GetFileName(fullPath));
     }
 
-    [Fact]
-    public void TryResolveWithin_DoesNotAcceptSiblingDirectoryPrefix()
-    {
-        // A naive StartsWith(root) without a separator would accept
-        // "/tmp/localsync-evil/x" for root "/tmp/localsync". The separator in
-        // the prefix is what closes that.
-        var root = Path.Combine(Path.GetTempPath(), "localsync");
+    /// <summary>Joins segments with the platform separator so these cases hold
+    /// on Windows as well as Unix.</summary>
+    private static string P(params string[] segments) =>
+        string.Join(Path.DirectorySeparatorChar, segments);
 
-        Assert.True(SafeFileName.TryResolveWithin(root, "ok.txt", out var inside));
-        Assert.Contains($"localsync{Path.DirectorySeparatorChar}", inside, StringComparison.Ordinal);
+    [Theory]
+    // A naive StartsWith(root) without a trailing separator accepts every one
+    // of these. Directory transfers validate multi-segment paths, so this is
+    // reachable there even though TryValidate blocks it for leaf names.
+    [InlineData("localsync", "localsync-evil", "x.txt")]
+    [InlineData("localsync", "localsync.backup", "x.txt")]
+    [InlineData("data", "database", "dump.sql")]
+    public void IsWithinRoot_RejectsSiblingSharingANamePrefix(
+        string rootLeaf, string siblingLeaf, string file)
+    {
+        var root = P("tmp", rootLeaf);
+        var candidate = P("tmp", siblingLeaf, file);
+
+        Assert.False(SafeFileName.IsWithinRoot(root, candidate));
+    }
+
+    [Fact]
+    public void IsWithinRoot_RejectsSiblingWithNoSeparatorAtAll()
+    {
+        Assert.False(SafeFileName.IsWithinRoot(P("tmp", "localsync"), P("tmp", "localsyncsecrets")));
+    }
+
+    [Fact]
+    public void IsWithinRoot_AcceptsPathsInsideRoot()
+    {
+        var root = P("tmp", "localsync");
+
+        Assert.True(SafeFileName.IsWithinRoot(root, P("tmp", "localsync", "x.txt")));
+        Assert.True(SafeFileName.IsWithinRoot(root, P("tmp", "localsync", "nested", "deep", "x.txt")));
+        Assert.True(SafeFileName.IsWithinRoot(
+            root + Path.DirectorySeparatorChar, P("tmp", "localsync", "x.txt")));
+    }
+
+    [Fact]
+    public void IsWithinRoot_RejectsRootItself()
+    {
+        // The root directory is not a valid destination for a file.
+        var root = P("tmp", "localsync");
+
+        Assert.False(SafeFileName.IsWithinRoot(root, root));
     }
 }

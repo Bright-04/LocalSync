@@ -18,7 +18,7 @@ public class DiscoveryHostedService : IHostedService
     {
         _discoveryService.OnDeviceDiscovered += OnDeviceDiscovered;
         _discoveryService.OnDeviceOffline += OnDeviceOffline;
-        
+
         return _discoveryService.StartDiscoveryAsync(cancellationToken);
     }
 
