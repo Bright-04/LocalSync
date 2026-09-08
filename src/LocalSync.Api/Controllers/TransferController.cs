@@ -1,5 +1,6 @@
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Models;
+using LocalSync.Core.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LocalSync.Api.Controllers;
@@ -25,7 +26,22 @@ public class TransferController : ControllerBase
     [HttpPost("session")]
     public async Task<IActionResult> CreateSession([FromBody] CreateSessionRequest request)
     {
-        var filePath = Path.Combine(_storagePath, request.FileName);
+        if (!SafeFileName.TryValidate(request.FileName, out var safeName, out var rejection))
+        {
+            _logger.LogWarning("Rejected session for unsafe file name: {Rejection}", rejection);
+            return BadRequest(new { Message = rejection });
+        }
+
+        if (request.TotalSize < 0)
+        {
+            return BadRequest(new { Message = "TotalSize must not be negative." });
+        }
+
+        if (!SafeFileName.TryResolveWithin(_storagePath, safeName, out var filePath))
+        {
+            return BadRequest(new { Message = "Resolved path escapes the storage root." });
+        }
+
         if (System.IO.File.Exists(filePath))
         {
             bool isIdentical = false;
@@ -82,7 +98,23 @@ public class TransferController : ControllerBase
         var session = _transferManager.GetSession(sessionId);
         if (session == null) return NotFound("Session not found");
 
-        var filePath = Path.Combine(_storagePath, $"{session.Id}_{session.FileName}");
+        // An unvalidated offset lets a single request create a file of
+        // arbitrary size: offset = 2^40 produces a 1 TiB sparse file.
+        if (offset < 0 || offset > session.TotalSize)
+        {
+            return BadRequest("Offset outside the declared session bounds.");
+        }
+
+        if (offset + chunk.Length > session.TotalSize)
+        {
+            return BadRequest("Chunk extends past the declared total size.");
+        }
+
+        if (!SafeFileName.TryResolveWithin(_storagePath, $"{session.Id}_{session.FileName}", out var filePath))
+        {
+            _logger.LogWarning("Rejected chunk for session {SessionId}: unsafe staging path", sessionId);
+            return BadRequest("Invalid staging path for session.");
+        }
 
         try
         {
