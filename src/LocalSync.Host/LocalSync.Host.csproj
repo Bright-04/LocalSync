@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+  </PropertyGroup>
+
+  <!--
+    A class library with a framework reference rather than an executable, so
+    the host-building code stays unit-testable while LocalSync.Cli remains the
+    single published binary.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalSync.Core\LocalSync.Core.csproj" />
+    <ProjectReference Include="..\LocalSync.Protocol\LocalSync.Protocol.csproj" />
+    <ProjectReference Include="..\LocalSync.Infrastructure\LocalSync.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LocalSync.Core.Tests" />
+  </ItemGroup>
+
+</Project>

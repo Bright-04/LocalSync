@@ -3,9 +3,9 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Security;
+using LocalSync.Infrastructure.Logging;
 using LocalSync.Protocol;
 using LocalSync.Protocol.Transfer;
-using LocalSync.Infrastructure.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace LocalSync.Infrastructure.Networking;

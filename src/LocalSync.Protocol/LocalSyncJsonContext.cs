@@ -31,5 +31,7 @@ namespace LocalSync.Protocol;
 [JsonSerializable(typeof(PeerView))]
 [JsonSerializable(typeof(PeerView[]))]
 [JsonSerializable(typeof(DaemonInfo))]
+[JsonSerializable(typeof(HealthResponse))]
+[JsonSerializable(typeof(SendFileRequest))]
 [JsonSerializable(typeof(ErrorResponse))]
 public sealed partial class LocalSyncJsonContext : JsonSerializerContext;

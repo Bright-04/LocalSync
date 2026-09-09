@@ -130,6 +130,22 @@ public sealed class DaemonInfo
     public string ReceiveDirectory { get; set; } = string.Empty;
 }
 
+public sealed class HealthResponse
+{
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "ok";
+}
+
+/// <summary>Asks the daemon to send a local file to a discovered peer.</summary>
+public sealed class SendFileRequest
+{
+    [JsonPropertyName("peerId")]
+    public string PeerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+}
+
 public sealed class ErrorResponse
 {
     [JsonPropertyName("error")]

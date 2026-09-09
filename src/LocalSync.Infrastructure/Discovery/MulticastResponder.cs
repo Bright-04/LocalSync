@@ -4,8 +4,8 @@ using System.Net.Sockets;
 using LocalSync.Core.Interfaces;
 using LocalSync.Core.Models;
 using LocalSync.Core.Security;
-using LocalSync.Protocol.Discovery;
 using LocalSync.Infrastructure.Logging;
+using LocalSync.Protocol.Discovery;
 using Microsoft.Extensions.Logging;
 
 namespace LocalSync.Infrastructure.Discovery;
@@ -31,6 +31,7 @@ public sealed class MulticastResponder : IAsyncDisposable
     private readonly CancellationTokenSource _stopping = new();
     private readonly IPEndPoint _groupEndpoint;
     private Socket? _receiveSocket;
+    private Socket? _unicastSocket;
     private Task? _receiveLoop;
     private Task? _announceLoop;
 
@@ -100,6 +101,13 @@ public sealed class MulticastResponder : IAsyncDisposable
             }
 
             _receiveSocket = receiver;
+
+            // A wildcard-bound socket for unicast replies, so the kernel picks
+            // the route. Replying from a per-interface socket fails with
+            // EADDRNOTAVAIL or EHOSTUNREACH whenever the peer is not on that
+            // socket's subnet - loopback peers being the obvious case.
+            _unicastSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            _unicastSocket.Bind(new IPEndPoint(IPAddress.Any, 0));
         }
         catch (SocketException ex)
         {
@@ -304,12 +312,21 @@ public sealed class MulticastResponder : IAsyncDisposable
 
     private void HandleDatagram(ReadOnlySpan<byte> datagram, IPEndPoint sender)
     {
-        if (!AnnouncementCodec.TryDecode(datagram, out var announcement) || announcement is null)
+        var parsed = AnnouncementCodec.TryDecode(datagram, out var announcement) && announcement is not null;
+        var peer = parsed
+            ? AnnouncementCodec.ToPeer(announcement!, sender.Address.ToString(), _timeProvider.GetUtcNow())
+            : null;
+
+        if (_logger.IsEnabled(LogLevel.Debug))
         {
-            return;
+            _logger.DatagramReceived(
+                datagram.Length,
+                sender.ToString(),
+                parsed,
+                peer?.Id.ToString() ?? "-",
+                peer?.Id == _selfId);
         }
 
-        var peer = AnnouncementCodec.ToPeer(announcement, sender.Address.ToString(), _timeProvider.GetUtcNow());
         if (peer is null)
         {
             return;
@@ -330,22 +347,34 @@ public sealed class MulticastResponder : IAsyncDisposable
         // Reply directly so the sender learns about us without waiting for our
         // next interval. Only to announcements, never to replies: two peers
         // answering each other's answers never stops.
-        if (announcement.Announce)
+        if (announcement is { Announce: true })
         {
-            _ = RespondAsync(sender);
+            _ = RespondAsync(new IPEndPoint(sender.Address, _options.MulticastPort));
         }
     }
 
+    /// <summary>
+    /// Unicasts our details straight back, so a peer learns about us without
+    /// waiting for our next interval.
+    /// </summary>
+    /// <remarks>
+    /// Addressed to the peer's discovery port, never to the source port of the
+    /// datagram: announcements go out from an ephemeral send socket that
+    /// nothing reads, so replying to it is silently discarded.
+    /// </remarks>
     private async Task RespondAsync(IPEndPoint sender)
     {
+        var socket = _unicastSocket;
+        if (socket is null)
+        {
+            return;
+        }
+
         try
         {
             var payload = AnnouncementCodec.Encode(BuildAnnouncement(announce: false));
-            foreach (var socket in _sendSockets)
-            {
-                await socket.SendToAsync(payload, SocketFlags.None, sender, _stopping.Token)
-                    .ConfigureAwait(false);
-            }
+            await socket.SendToAsync(payload, SocketFlags.None, sender, _stopping.Token)
+                .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is SocketException or ObjectDisposedException or OperationCanceledException)
         {
@@ -362,6 +391,8 @@ public sealed class MulticastResponder : IAsyncDisposable
 
         _receiveSocket?.Dispose();
         _receiveSocket = null;
+        _unicastSocket?.Dispose();
+        _unicastSocket = null;
 
         foreach (var socket in _sendSockets)
         {

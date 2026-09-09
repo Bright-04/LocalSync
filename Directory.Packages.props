@@ -22,6 +22,10 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
   </ItemGroup>
 
+  <ItemGroup Label="CLI">
+    <PackageVersion Include="System.CommandLine" Version="2.0.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Logging">
     <!-- Serilog.Settings.Configuration is deliberately absent: it is not
          trim-compatible. Configuration is code-only. See BannedSymbols.txt. -->

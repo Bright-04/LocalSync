@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\LocalSync.Core\LocalSync.Core.csproj" />
     <ProjectReference Include="..\..\src\LocalSync.Infrastructure\LocalSync.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\LocalSync.Host\LocalSync.Host.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,71 +4,106 @@ using LocalSync.Core.Models;
 
 namespace LocalSync.Core.Services;
 
-public class TransferManager : ITransferManager
+public sealed class TransferManager : ITransferManager
 {
     private readonly ConcurrentDictionary<Guid, TransferSession> _sessions = new();
-    private readonly ITransferNotificationService _notificationService;
+    private readonly ITransferEventSink _events;
+    private readonly TimeProvider _timeProvider;
 
-    public TransferManager(ITransferNotificationService notificationService)
+    public TransferManager(ITransferEventSink events, TimeProvider timeProvider)
     {
-        _notificationService = notificationService;
+        ArgumentNullException.ThrowIfNull(events);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        _events = events;
+        _timeProvider = timeProvider;
     }
 
-    public async Task<TransferSession> CreateSessionAsync(Guid targetDeviceId, string fileName, long totalSize)
+    public async Task<TransferSession> CreateSessionAsync(
+        CreateSessionOptions options, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentOutOfRangeException.ThrowIfNegative(options.TotalSize);
+
         var session = new TransferSession
         {
             Id = Guid.NewGuid(),
-            TargetDeviceId = targetDeviceId,
-            FileName = fileName,
-            TotalSize = totalSize,
-            TransferredSize = 0,
-            State = TransferState.Pending,
-            CreatedAt = DateTime.UtcNow
+            FileName = options.FileName,
+            TotalSize = options.TotalSize,
+            Direction = options.Direction,
+            PeerId = options.PeerId,
+            Sha256 = options.Sha256,
+            CreatedAt = _timeProvider.GetUtcNow(),
         };
-        _sessions.TryAdd(session.Id, session);
 
-        await _notificationService.NotifySessionCreatedAsync(session).ConfigureAwait(false);
+        _sessions[session.Id] = session;
+        await _events.TransferCreatedAsync(session, ct).ConfigureAwait(false);
         return session;
     }
 
-    public TransferSession? GetSession(Guid sessionId)
-    {
-        _sessions.TryGetValue(sessionId, out var session);
-        return session;
-    }
+    public TransferSession? GetSession(Guid sessionId) =>
+        _sessions.TryGetValue(sessionId, out var session) ? session : null;
 
-    public IReadOnlyCollection<TransferSession> GetAllSessions()
-    {
-        return _sessions.Values.OrderByDescending(s => s.CreatedAt).ToList();
-    }
+    public IReadOnlyList<TransferSession> GetSessions() =>
+        _sessions.Values.OrderByDescending(s => s.CreatedAt).ToList();
 
-    public async Task UpdateSessionStateAsync(Guid sessionId, TransferState state)
+    public async Task RecordProgressAsync(Guid sessionId, long endOffset, CancellationToken ct = default)
     {
-        if (_sessions.TryGetValue(sessionId, out var session))
+        if (!_sessions.TryGetValue(sessionId, out var session))
         {
-            session.State = state;
-            if (state == TransferState.Completed || state == TransferState.Failed || state == TransferState.Cancelled)
-            {
-                session.CompletedAt = DateTime.UtcNow;
-            }
-            await _notificationService.NotifyStateChangedAsync(sessionId, state).ConfigureAwait(false);
+            return;
+        }
+
+        session.AdvanceTo(endOffset);
+
+        if (session.State == TransferState.Pending)
+        {
+            session.TryTransition(TransferState.Pending, TransferState.Active);
+        }
+
+        // Completion is decided by the high-water mark reaching the declared
+        // size, and the transition is a compare-and-exchange, so exactly one
+        // caller finalises no matter how many chunks land at once.
+        if (session.TransferredSize >= session.TotalSize
+            && session.TryTransition(TransferState.Active, TransferState.Completed))
+        {
+            session.CompletedAt = _timeProvider.GetUtcNow();
+            await _events
+                .StateChangedAsync(sessionId, TransferState.Active, TransferState.Completed, ct)
+                .ConfigureAwait(false);
         }
     }
 
-    public async Task UpdateProgressAsync(Guid sessionId, long bytesTransferred)
+    public async Task<bool> TransitionAsync(
+        Guid sessionId, TransferState target, CancellationToken ct = default)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return false;
+        }
+
+        var previous = session.ForceState(target);
+        if (previous == target)
+        {
+            return false;
+        }
+
+        if (target is TransferState.Completed or TransferState.Failed or TransferState.Cancelled)
+        {
+            session.CompletedAt = _timeProvider.GetUtcNow();
+        }
+
+        await _events.StateChangedAsync(sessionId, previous, target, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    public async Task FailAsync(Guid sessionId, string reason, CancellationToken ct = default)
     {
         if (_sessions.TryGetValue(sessionId, out var session))
         {
-            session.TransferredSize += bytesTransferred;
-            await _notificationService.NotifyProgressAsync(sessionId, session.TransferredSize).ConfigureAwait(false);
-
-            if (session.TransferredSize >= session.TotalSize)
-            {
-                session.State = TransferState.Completed;
-                session.CompletedAt = DateTime.UtcNow;
-                await _notificationService.NotifyStateChangedAsync(sessionId, TransferState.Completed).ConfigureAwait(false);
-            }
+            session.ErrorMessage = reason;
         }
+
+        await TransitionAsync(sessionId, TransferState.Failed, ct).ConfigureAwait(false);
     }
 }

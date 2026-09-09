@@ -42,6 +42,13 @@ internal static partial class Log
         this ILogger logger, Exception exception, string operation);
 
     [LoggerMessage(
+        EventId = 1006,
+        Level = LogLevel.Debug,
+        Message = "Datagram {Bytes}B from {Source}: parsed={Parsed} id={PeerId} self={IsSelf}")]
+    internal static partial void DatagramReceived(
+        this ILogger logger, int bytes, string source, bool parsed, string peerId, bool isSelf);
+
+    [LoggerMessage(
         EventId = 1004,
         Level = LogLevel.Information,
         Message = "Discovered {Alias} at {Endpoint} via {Protocol}")]

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>localsync</AssemblyName>
+    <RootNamespace>LocalSync.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishAot>true</PublishAot>
+    <StripSymbols>true</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <!-- The UI is embedded, not served from disk, so the static-asset manifest
+         would be a second file sitting next to a "single binary". -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalSync.Host\LocalSync.Host.csproj" />
+  </ItemGroup>
+
+</Project>
