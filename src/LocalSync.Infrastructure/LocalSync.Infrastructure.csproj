@@ -6,16 +6,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LocalSync.Core\LocalSync.Core.csproj" />
+    <ProjectReference Include="..\LocalSync.Protocol\LocalSync.Protocol.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Makaretu.Dns.Multicast is removed in Phase 1: LocalSend discovery is
-         plain UDP multicast on 224.0.0.167:53317 with a JSON payload, so a
-         hand-rolled responder serves both protocol stacks with zero packages
-         and no trimming risk. -->
-    <PackageReference Include="Makaretu.Dns.Multicast" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LocalSync.Core.Tests" />
   </ItemGroup>
 
 </Project>

@@ -19,7 +19,6 @@
   </ItemGroup>
 
   <ItemGroup Label="Extensions">
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
   </ItemGroup>
 
@@ -30,11 +29,8 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
   </ItemGroup>
 
-  <ItemGroup Label="Discovery (removed in Phase 1 by the hand-rolled UDP responder)">
-    <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
-  </ItemGroup>
-
   <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.10.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />

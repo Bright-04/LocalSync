@@ -3,6 +3,7 @@
     <Project Path="src/LocalSync.Core/LocalSync.Core.csproj" />
     <Project Path="src/LocalSync.Infrastructure/LocalSync.Infrastructure.csproj" />
     <Project Path="src/LocalSync.Api/LocalSync.Api.csproj" />
+    <Project Path="src/LocalSync.Protocol/LocalSync.Protocol.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LocalSync.Core.Tests/LocalSync.Core.Tests.csproj" />
