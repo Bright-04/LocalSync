@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <WebUiSource>$(MSBuildThisFileDirectory)..\..\web\localsync-ui</WebUiSource>
+    <WebUiDist Condition="'$(WebUiDist)' == ''">$(WebUiSource)\dist</WebUiDist>
+    <WebUiStamp>$(MSBuildThisFileDirectory)obj\webui.stamp</WebUiStamp>
+    <!--
+      Skipping the Vite build keeps the inner loop fast: run `npm run dev`
+      alongside `dotnet run` and use the Vite proxy. EnsureWebUiForPublish makes
+      it impossible to ship a build produced this way.
+    -->
+    <SkipWebUi Condition="'$(SkipWebUi)' == '' And '$(Configuration)' == 'Debug' And '$(LOCALSYNC_DEV_UI)' == '1'">true</SkipWebUi>
+    <SkipWebUi Condition="'$(SkipWebUi)' == ''">false</SkipWebUi>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <Target Name="CheckNode" Condition="'$(SkipWebUi)' != 'true'">
+    <Exec Command="node --version" ContinueOnError="true" StandardOutputImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="NodeExitCode" />
+    </Exec>
+    <Error Condition="'$(NodeExitCode)' != '0'"
+           Text="Node.js is required to build the web UI. Install the version in .nvmrc, or set LOCALSYNC_DEV_UI=1 for a Debug build that serves a placeholder." />
+  </Target>
+
+  <Target Name="BuildWebUi"
+          DependsOnTargets="CheckNode"
+          BeforeTargets="AssignTargetPaths"
+          Condition="'$(SkipWebUi)' != 'true'"
+          Inputs="$(WebUiSource)\package-lock.json;$(WebUiSource)\vite.config.ts;$(WebUiSource)\index.html;@(WebUiSourceFiles)"
+          Outputs="$(WebUiStamp)">
+    <ItemGroup>
+      <WebUiSourceFiles Include="$(WebUiSource)\src\**\*" />
+    </ItemGroup>
+    <Exec Command="npm ci" WorkingDirectory="$(WebUiSource)" Condition="!Exists('$(WebUiSource)\node_modules')" />
+    <Exec Command="npm run build" WorkingDirectory="$(WebUiSource)" />
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <Touch Files="$(WebUiStamp)" AlwaysCreate="true" />
+  </Target>
+
+  <!-- Runs once, ahead of the embedded-files manifest generation. The guard
+       matters because this hook fires again for each referencing project, and a
+       second pass would add every resource twice. -->
+  <Target Name="EmbedWebUi"
+          BeforeTargets="_GenerateEmbeddedFilesManifest;PrepareForBuild"
+          DependsOnTargets="BuildWebUi"
+          Condition="'$(WebUiEmbedded)' != 'true'">
+    <PropertyGroup>
+      <WebUiEmbedded>true</WebUiEmbedded>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(SkipWebUi)' != 'true'">
+      <_WebUiFile Include="$(WebUiDist)\**\*" />
+      <EmbeddedResource Include="@(_WebUiFile)">
+        <LogicalName>wwwroot/%(_WebUiFile.RecursiveDir)%(_WebUiFile.Filename)%(_WebUiFile.Extension)</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+    <ItemGroup Condition="'$(SkipWebUi)' == 'true'">
+      <EmbeddedResource Include="$(MSBuildThisFileDirectory)DevPlaceholder\index.html">
+        <LogicalName>wwwroot/index.html</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+    <Error Condition="'$(SkipWebUi)' != 'true' And '@(_WebUiFile)' == ''"
+           Text="No web UI assets found at $(WebUiDist). Run 'npm run build' in web/localsync-ui." />
+  </Target>
+
+  <Target Name="EnsureWebUiForPublish" BeforeTargets="Publish" Condition="'$(SkipWebUi)' == 'true'">
+    <Error Text="Refusing to publish with a placeholder web UI. Unset LOCALSYNC_DEV_UI or pass -p:SkipWebUi=false." />
+  </Target>
+
+</Project>

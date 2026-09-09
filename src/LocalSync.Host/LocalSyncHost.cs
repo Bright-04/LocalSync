@@ -30,6 +30,12 @@ public sealed class DaemonOptions
     /// <summary>Bind to loopback only. The default until pairing exists.</summary>
     public bool LoopbackOnly { get; set; }
 
+    /// <summary>
+    /// Path of the Unix domain socket or named pipe carrying the CLI's
+    /// requests. Null disables it.
+    /// </summary>
+    public string? ControlSocketPath { get; set; }
+
     public Action<IEndpointRouteBuilderAdapter>? MapAdditionalEndpoints { get; set; }
 }
 
@@ -75,12 +81,65 @@ public static class LocalSyncHost
                 kestrel.ListenAnyIP(options.HttpPort);
             }
 
+            // The CLI talks over a socket the filesystem protects, so local
+            // control needs no bearer token and no open TCP port. On Unix the
+            // socket is created 0600; on Windows the named pipe ACL does the
+            // same job.
+            if (options.ControlSocketPath is { Length: > 0 } controlPath)
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    kestrel.ListenNamedPipe(Path.GetFileName(controlPath));
+                }
+                else
+                {
+                    if (File.Exists(controlPath))
+                    {
+                        // A socket left behind by a crashed daemon would make
+                        // bind fail with EADDRINUSE.
+                        File.Delete(controlPath);
+                    }
+
+                    // sockaddr_un.sun_path is a fixed 104-byte field on
+                    // macOS and 108 on Linux. Exceeding it otherwise surfaces
+                    // as an opaque ArgumentOutOfRangeException from deep inside
+                    // Kestrel's constructor.
+                    const int MaxUnixSocketPath = 104;
+                    if (controlPath.Length > MaxUnixSocketPath)
+                    {
+                        throw new InvalidOperationException(
+                            $"Control socket path is {controlPath.Length} characters; the platform " +
+                            $"limit is {MaxUnixSocketPath}. Pass a shorter --control-socket, or set " +
+                            "XDG_RUNTIME_DIR to a shorter directory.");
+                    }
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(controlPath)!);
+                    kestrel.ListenUnixSocket(controlPath);
+                }
+            }
+
             kestrel.Limits.MaxRequestBodySize = TransferEndpoints.MaxChunkBytes * 2L;
         });
 
         RegisterServices(builder.Services, options);
 
         var app = builder.Build();
+
+        if (options.ControlSocketPath is { Length: > 0 } socketPath && !OperatingSystem.IsWindows())
+        {
+            app.Lifetime.ApplicationStarted.Register(() => RestrictSocketPermissions(socketPath));
+            app.Lifetime.ApplicationStopped.Register(() =>
+            {
+                try
+                {
+                    File.Delete(socketPath);
+                }
+                catch (IOException)
+                {
+                    // Best effort; a stale socket is cleaned up on next start.
+                }
+            });
+        }
 
         app.MapPeerEndpoints();
         app.MapTransferEndpoints();
@@ -90,6 +149,32 @@ public static class LocalSyncHost
         options.MapAdditionalEndpoints?.Invoke(new EndpointRouteBuilderAdapter(app));
 
         return app;
+    }
+
+    /// <summary>
+    /// Narrows the socket to owner-only, since Kestrel creates it with the
+    /// process umask and a group-writable socket would let another local user
+    /// drive this daemon.
+    /// </summary>
+    private static void RestrictSocketPermissions(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
+        catch (IOException)
+        {
+            // Non-fatal: the daemon still works, the socket is just broader
+            // than intended.
+        }
     }
 
     private static void RegisterServices(IServiceCollection services, DaemonOptions options)

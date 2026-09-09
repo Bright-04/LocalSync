@@ -163,4 +163,27 @@ public class DeviceIdTests
         Assert.True(a != c);
         Assert.False(a.Equals("not a device id"));
     }
+
+    [Fact]
+    public void ParsesTheDisplayFormPeopleActuallyRead()
+    {
+        var original = DeviceId.CreateRandom();
+
+        // `localsync info` prints the grouped, check-charactered form. Refusing
+        // it would mean the id shown is not the id accepted.
+        Assert.True(DeviceId.TryParse(original.ToDisplayString(), out var parsed));
+        Assert.Equal(original, parsed);
+
+        Assert.True(DeviceId.TryParse(original.ToDisplayString().Replace("-", ""), out var unhyphenated));
+        Assert.Equal(original, unhyphenated);
+    }
+
+    [Fact]
+    public void RejectsADisplayFormWithAMistypedCharacter()
+    {
+        var display = DeviceId.CreateRandom().ToDisplayString().ToCharArray();
+        display[2] = display[2] == 'A' ? 'B' : 'A';
+
+        Assert.False(DeviceId.TryParse(new string(display), out _));
+    }
 }

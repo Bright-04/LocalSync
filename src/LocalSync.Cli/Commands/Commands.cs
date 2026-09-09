@@ -1,5 +1,6 @@
 using System.CommandLine;
 using LocalSync.Host;
+using LocalSync.WebUi;
 
 namespace LocalSync.Cli.Commands;
 
@@ -9,6 +10,13 @@ internal static class SharedOptions
 
     internal static Option<int> Port() =>
         new("--port", "-p") { Description = "Daemon HTTP port", DefaultValueFactory = _ => DefaultPort };
+
+    internal static Option<string?> Socket() =>
+        new("--control-socket")
+        {
+            Description = "Path of the daemon's control socket",
+            DefaultValueFactory = _ => ControlSocket.DefaultPath,
+        };
 }
 
 internal static class DaemonCommand
@@ -27,10 +35,15 @@ internal static class DaemonCommand
         {
             Description = "Bind HTTP to localhost only",
         };
+        var socket = new Option<string?>("--control-socket")
+        {
+            Description = "Path of the CLI control socket",
+            DefaultValueFactory = _ => ControlSocket.DefaultPath,
+        };
 
         var command = new Command("daemon", "Run the LocalSync daemon")
         {
-            port, discoveryPort, alias, receiveDir, loopback,
+            port, discoveryPort, alias, receiveDir, loopback, socket,
         };
 
         command.SetAction(async (result, ct) =>
@@ -43,6 +56,8 @@ internal static class DaemonCommand
                     Alias = result.GetValue(alias),
                     ReceiveDirectory = result.GetValue(receiveDir),
                     LoopbackOnly = result.GetValue(loopback),
+                    ControlSocketPath = result.GetValue(socket),
+                    MapAdditionalEndpoints = adapter => adapter.Routes.MapWebUi(),
                 },
                 []);
 
@@ -59,11 +74,12 @@ internal static class PeersCommand
     internal static Command Create()
     {
         var port = SharedOptions.Port();
-        var command = new Command("peers", "List devices discovered on the local network") { port };
+        var socket = SharedOptions.Socket();
+        var command = new Command("peers", "List devices discovered on the local network") { port, socket };
 
         command.SetAction(async (result, ct) =>
         {
-            using var client = new DaemonClient(result.GetValue(port));
+            using var client = new DaemonClient(result.GetValue(port), result.GetValue(socket));
             var peers = await client.GetPeersAsync(ct).ConfigureAwait(false);
 
             if (peers.Length == 0)
@@ -95,7 +111,8 @@ internal static class SendCommand
         var peer = new Option<string>("--to", "-t") { Description = "Target device id", Required = true };
         var port = SharedOptions.Port();
 
-        var command = new Command("send", "Send a file to a discovered peer") { file, peer, port };
+        var socket = SharedOptions.Socket();
+        var command = new Command("send", "Send a file to a discovered peer") { file, peer, port, socket };
 
         command.SetAction(async (result, ct) =>
         {
@@ -106,7 +123,7 @@ internal static class SendCommand
                 return 2;
             }
 
-            using var client = new DaemonClient(result.GetValue(port));
+            using var client = new DaemonClient(result.GetValue(port), result.GetValue(socket));
             var (ok, detail) = await client.SendAsync(result.GetValue(peer)!, path, ct).ConfigureAwait(false);
 
             Console.WriteLine(detail);
@@ -122,11 +139,12 @@ internal static class InfoCommand
     internal static Command Create()
     {
         var port = SharedOptions.Port();
-        var command = new Command("info", "Show this device's identity") { port };
+        var socket = SharedOptions.Socket();
+        var command = new Command("info", "Show this device's identity") { port, socket };
 
         command.SetAction(async (result, ct) =>
         {
-            using var client = new DaemonClient(result.GetValue(port));
+            using var client = new DaemonClient(result.GetValue(port), result.GetValue(socket));
             var info = await client.GetInfoAsync(ct).ConfigureAwait(false);
 
             if (info is null)

@@ -20,6 +20,8 @@ public readonly struct DeviceId : IEquatable<DeviceId>
 {
     public const int SizeInBytes = 32;
     private const int EncodedLength = 52;
+    private const int GroupLength = 13;
+    private const int DisplayLength = 56;
 
     private readonly string _value;
 
@@ -54,6 +56,15 @@ public readonly struct DeviceId : IEquatable<DeviceId>
         }
 
         var normalized = Base32.Normalize(text);
+
+        // Accept the grouped display form as well as the canonical one. The
+        // display form is what a person reads off a screen, so refusing it
+        // would mean the id we show is not the id we accept.
+        if (normalized.Length == DisplayLength && TryStripCheckCharacters(normalized, out var stripped))
+        {
+            normalized = stripped;
+        }
+
         if (normalized.Length != EncodedLength)
         {
             return false;
@@ -65,6 +76,28 @@ public readonly struct DeviceId : IEquatable<DeviceId>
         }
 
         id = new DeviceId(normalized);
+        return true;
+    }
+
+    /// <summary>Validates and removes the per-group Luhn check characters.</summary>
+    private static bool TryStripCheckCharacters(string normalized, out string payload)
+    {
+        payload = string.Empty;
+        var builder = new System.Text.StringBuilder(EncodedLength);
+
+        for (var offset = 0; offset < normalized.Length; offset += GroupLength + 1)
+        {
+            var group = normalized.Substring(offset, GroupLength);
+
+            if (Base32.ComputeCheckCharacter(group) != normalized[offset + GroupLength])
+            {
+                return false;
+            }
+
+            builder.Append(group);
+        }
+
+        payload = builder.ToString();
         return true;
     }
 
@@ -84,10 +117,10 @@ public readonly struct DeviceId : IEquatable<DeviceId>
             return string.Empty;
         }
 
-        var groups = new List<string>(4);
-        for (var i = 0; i < _value.Length; i += 13)
+        var groups = new List<string>(EncodedLength / GroupLength);
+        for (var i = 0; i < _value.Length; i += GroupLength)
         {
-            var group = _value.Substring(i, Math.Min(13, _value.Length - i));
+            var group = _value.Substring(i, Math.Min(GroupLength, _value.Length - i));
             groups.Add(group + Base32.ComputeCheckCharacter(group));
         }
 

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LocalSync.Host\LocalSync.Host.csproj" />
+    <ProjectReference Include="..\LocalSync.WebUi\LocalSync.WebUi.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,6 +5,7 @@
     <Project Path="src/LocalSync.Cli/LocalSync.Cli.csproj" />
     <Project Path="src/LocalSync.Infrastructure/LocalSync.Infrastructure.csproj" />
     <Project Path="src/LocalSync.Protocol/LocalSync.Protocol.csproj" />
+    <Project Path="src/LocalSync.WebUi/LocalSync.WebUi.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LocalSync.Core.Tests/LocalSync.Core.Tests.csproj" />

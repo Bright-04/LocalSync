@@ -100,3 +100,6 @@ appsettings.Local.json
 ._*
 Thumbs.db
 desktop.ini
+
+# MSBuild incrementality marker for the embedded web UI
+webui.stamp
