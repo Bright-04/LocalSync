@@ -1,9 +1,13 @@
 <Solution>
-  <Folder Name="/backend/">
-    <Project Path="backend/LocalSync.Api/LocalSync.Api.csproj" />
-    <Project Path="backend/LocalSync.Core/LocalSync.Core.csproj" />
-    <Project Path="backend/LocalSync.Infrastructure/LocalSync.Infrastructure.csproj" />
-    <Project Path="backend/LocalSync.Tests/LocalSync.Tests.csproj" />
-    <Project Path="backend/LocalSync.Worker/LocalSync.Worker.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/LocalSync.Core/LocalSync.Core.csproj" />
+    <Project Path="src/LocalSync.Host/LocalSync.Host.csproj" />
+    <Project Path="src/LocalSync.Cli/LocalSync.Cli.csproj" />
+    <Project Path="src/LocalSync.Infrastructure/LocalSync.Infrastructure.csproj" />
+    <Project Path="src/LocalSync.Protocol/LocalSync.Protocol.csproj" />
+    <Project Path="src/LocalSync.WebUi/LocalSync.WebUi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LocalSync.Core.Tests/LocalSync.Core.Tests.csproj" />
   </Folder>
 </Solution>

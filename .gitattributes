@@ -1,0 +1,31 @@
+* text=auto eol=lf
+
+# Visual Studio rewrites solution files with CRLF regardless, so declaring it
+# avoids a diff every time the IDE touches them. Batch files genuinely break
+# with LF line endings.
+*.sln   text eol=crlf
+*.slnx  text eol=crlf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+
+*.sh    text eol=lf
+
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.pdf   binary
+*.zip   binary
+*.tar.gz binary
+
+# Verify / snapshot testing
+*.verified.* text eol=lf working-tree-encoding=UTF-8
+*.received.* text eol=lf working-tree-encoding=UTF-8 linguist-generated
+
+# Generated API client — reviewable in diffs but not counted as authored code
+web/localsync-ui/src/lib/api.gen.ts linguist-generated
+
+*.md text eol=lf diff=markdown

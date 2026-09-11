@@ -1,8 +1,105 @@
-*.bin
-*.obj
-bin/
-obj/
-node_modules/
-.vs/
+# ---------------------------------------------------------------------------
+# .NET
+# ---------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+publish/
 *.user
+*.suo
+*.userprefs
+*.pdb
+*.dll.config
+msbuild.log
+msbuild.err
+msbuild.wrn
+project.lock.json
+.packages/
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Test output
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coverclover
+coverage*.json
+coverage*.xml
+coverage*.info
+TestResults/
+
+# Verify snapshot testing — .received.* are transient, .verified.* are committed
+*.received.*
+*.received/
+
+# IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+
+# ---------------------------------------------------------------------------
+# Node / frontend
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# ---------------------------------------------------------------------------
+# LocalSync runtime state — must never be committed
+# ---------------------------------------------------------------------------
+# Device identity private keys, paired-peer stores, and SQLite databases.
+*.pfx
+*.p12
+*.pem
+*.key
+identity.json
+peers.json
+compat-peers.json
+localsync.db
+localsync.db-wal
+localsync.db-shm
+.localsync-incomplete/
+
+# Secrets
 .env
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Local.json
+
+# Signing / notarization credentials
+*.p8
+*.jks
+*.keystore
+
+# ---------------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# MSBuild incrementality marker for the embedded web UI
+webui.stamp

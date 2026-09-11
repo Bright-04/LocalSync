@@ -1,71 +1,98 @@
-# LocalSync 🚀
+# LocalSync
 
-LocalSync is a **LAN-first, production-grade file transfer and synchronization platform** built with **.NET 8** and **React**. It demonstrates advanced systems engineering through zero-configuration peer discovery, chunked streaming, and real-time operational visibility.
+LAN-first peer-to-peer file transfer. Devices find each other on the local
+network and send files directly, with no cloud, no account, and no relay.
 
-![Modern UI](https://img.shields.io/badge/UI-Modern-blueviolet)
-![Realtime](https://img.shields.io/badge/Realtime-SignalR-blue)
-![Discovery](https://img.shields.io/badge/Discovery-mDNS-emerald)
+> **Status: early development.** The repository is being restructured from a
+> prototype into a working product. The table below is the honest state of play —
+> nothing is listed as shipped until a test asserts it.
 
-## ✨ Premium UI/UX Experience
+## Feature status
 
-LocalSync features a high-fidelity dashboard designed with modern web standards:
-- **Rich Aesthetics**: A deep `#0B0F19` dark theme with ambient glowing gradients and glassmorphic panels.
-- **Modern Typography**: Precision-tailored using `Outfit` for structural headings and `Inter` for data density.
-- **Dynamic Interactions**: Micro-animations on device cards, smooth width transitions for progress bars, and real-time state signaling.
+| Capability | Status |
+|---|---|
+| Peer discovery on the LAN | 🚧 In progress — being rewritten as a UDP multicast responder |
+| One-shot file send / receive | 🚧 In progress |
+| Web dashboard | 🚧 In progress |
+| Resumable transfers | 📋 Planned |
+| Pinned public-key device pairing (QR + short code) | 📋 Planned |
+| Headless daemon + CLI + REST API | 📋 Planned |
+| Parallel multi-stream transfer | 📋 Planned |
+| Zero-install browser receive | 📋 Planned |
+| LocalSend v2.2 interoperability | 📋 Planned |
+| Mobile (Android / iOS) | 📋 Planned |
+| Continuous folder sync | 📋 Planned — deferred past v1 |
 
-## 🛠️ Technical Architecture
+Nothing above is shipped yet. Do not use this for data you care about.
 
-LocalSync is built on **Clean Architecture** principles, ensuring a decoupled and maintainable codebase:
+## Design goals
 
-- **LocalSync.Core**: Domain models, interfaces, and business logic (Transfer/Sync management).
-- **LocalSync.Infrastructure**: mDNS discovery engine (`Makaretu.Dns`) and high-performance `HttpClient` streaming client.
-- **LocalSync.Api**: ASP.NET Core 8 Web API, SignalR Real-time Hub, and Controller endpoints.
-- **LocalSync.Worker**: Background monitoring using `FileSystemWatcher` for automated folder synchronization.
-- **LocalSync.Tests**: xUnit test suite for validating transfer logic and state transitions.
+- **Lightweight** — a single self-contained binary per platform, no runtime install.
+- **MITM-proof** — device identity is a pinned public key, confirmed out-of-band
+  by QR scan or a short code. Discovery announcements are treated as routing
+  hints, never as trust inputs.
+- **Broadly cross-platform** — Windows, macOS, Linux, Android, iOS.
+- **Interoperable** — speaks the LocalSend v2.2 protocol alongside its own.
 
-## 🚀 Key Features
+See [`docs/architecture.md`](docs/architecture.md) for the project layout and
+dependency rules, and [`docs/adr/`](docs/adr/) for the reasoning behind the
+significant decisions.
 
-### 1. Robust Device Discovery
-Uses mDNS to discover peers on the local network. Includes a **deterministic ID fallback** mechanism to handle fragmented DNS packets on complex local network adapters (like Windows Loopback).
+## Prerequisites
 
-### 2. Chunked File Transfer
-Large files are sliced into 1MB chunks natively in the browser and streamed to the target using `FileStream.Seek`. This allows for resumable, low-memory transfers of multi-gigabyte files.
+| Tool | Version | Notes |
+|---|---|---|
+| .NET SDK | 10.0.100 or later in that feature band | Pinned by `global.json`. Install the official package from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0) rather than a package manager. |
+| Node.js | 24 | Pinned by `.nvmrc`. Only needed to work on the web UI. |
 
-### 3. Real-time Monitoring
-Powered by **SignalR**, providing a "live" feel to the dashboard. Progress, speeds, and state changes are pushed from the server to the client instantly.
+## Building
 
-### 4. Folder Sync (One-Way)
-Automated folder watching that triggers background transfers. Implements a **Last-Writer-Wins** strategy using MD5 hashing and UTC timestamps to resolve conflicts.
+```bash
+# Backend
+dotnet restore
+dotnet build
+dotnet test
 
-## 🏁 Getting Started
+# Web UI
+cd web/localsync-ui
+npm ci
+npm run build
+```
 
-### Prerequisites
-- .NET 8 SDK
-- Node.js (v18+)
+## Developing the web UI
 
-### Running the Project
+The dev server proxies API and event-stream traffic to a locally running
+daemon, so hot reload works without rebuilding the backend:
 
-1. **Start the Backend**:
-   ```bash
-   cd backend/LocalSync.Api
-   dotnet run --urls "http://localhost:5000"
-   ```
+```bash
+cd web/localsync-ui
+npm run dev      # http://localhost:5173
+npm run lint     # Biome: format + lint in one pass
+npm run format   # apply formatting
+```
 
-2. **Start the Frontend**:
-   ```bash
-   cd frontend/localsync-web
-   npm install
-   npm run dev
-   ```
+## Repository layout
 
-3. **Optional: Launch Instance B (Receiver)**:
-   ```bash
-   # In a new terminal
-   cd backend/LocalSync.Api
-   dotnet run --urls "http://localhost:5001"
-   ```
+```
+src/LocalSync.Core/            domain models and interfaces, BCL only
+src/LocalSync.Infrastructure/  discovery, transport, storage
+src/LocalSync.Api/             HTTP host (being split into Host + Cli)
+tests/                         test projects
+web/localsync-ui/              React + Vite dashboard
+docs/                          architecture, ADRs, protocol specs
+```
 
-Open your browser at `http://localhost:5173` to experience the LocalSync Network Radar.
+`LocalSync.Core` deliberately references nothing outside the base class
+library, so the same assembly can be consumed by the mobile head. That rule is
+enforced by a test, not by convention.
 
-## 🧪 CI/CD
-Automated builds and tests are handled via **GitHub Actions** (`.github/workflows/ci.yml`), ensuring every pull request meets engineering standards.
+## Continuous integration
+
+[`.github/workflows/pr.yml`](.github/workflows/pr.yml) runs on every pull
+request: restore, format check, build, test, an AOT analyzer pass over the
+libraries, the web lint/typecheck/build, and a documentation lint that fails if
+this file drifts from reality.
+
+## Licence
+
+Not yet chosen.
